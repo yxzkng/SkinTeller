@@ -19,6 +19,34 @@
 
 ---
 
+## 백엔드 개발 환경과 검증
+
+SkinTeller의 백엔드는 피부 분석 결과를 저장하고, 제품 사용 기록과 피부 지표를 연결해 개인별 리포트를 생성합니다. 분석 규칙을 바꿀 때 결과에 미치는 영향을 확인할 수 있도록 테스트와 설계 기록을 저장소에 함께 관리합니다.
+
+### 로컬 MySQL 없이 테스트 실행
+
+백엔드 테스트는 [H2 인메모리 DB 설정](backend/src/test/resources/application.yml)을 사용합니다. MySQL을 따로 띄우지 않고 Gradle Wrapper로 테스트와 빌드를 실행할 수 있습니다. 운영 DB와의 호환성 검증은 별도로 필요합니다.
+
+```bash
+cd backend
+./gradlew test
+./gradlew build
+```
+
+[테스트 코드](backend/src/test/java)에는 성분 반응 시차 분석, 리포트 생성, 외부 분석 클라이언트 검증이 포함됩니다. 의존성과 JUnit 설정은 [build.gradle](backend/build.gradle)에서 확인할 수 있습니다.
+
+### 분석 기준을 문서화하고 테스트로 검증
+
+| 발견한 문제 | 변경한 기준과 확인 위치 |
+| --- | --- |
+| 아침·저녁 점수를 평균 내면 저녁 제품을 바르기 전의 아침 점수가 비교 기준에 섞임 | 아침은 아침끼리, 저녁은 저녁끼리 비교하도록 변경. [시간대 분리 ADR](docs/decisions/0014-시차-분석-모닝나이트-슬롯-분리.md) · [시차 분석 테스트](backend/src/test/java/com/ildangbaek/backend/domain/analysis/lag) |
+| 관측이 적거나 변화 방향이 일관되지 않으면 일시적인 변화를 성분 반응으로 오인할 수 있음 | 관측 3건 이상, 방향 일치율 67% 이상, 평균 변화량 3점 이상을 모두 만족할 때 패턴으로 확정. [패턴 확정 기준 ADR](docs/decisions/0009-시차-분석-패턴-확정-기준.md) |
+| OpenAI Vision 2차 판정 실패 시 분석 결과를 제공하기 어려움 | 규칙 기반 1차 점수를 유지하고 Vision 결과는 2차 판정에 사용. [2단계 점수 확정 ADR](docs/decisions/0022-openai-비전-2단계-점수-확정.md) · [분석 클라이언트 테스트](backend/src/test/java/com/ildangbaek/backend/domain/analysis/client) |
+
+이 과정에서 관측 시점과 판정 조건을 명시해야 분석 결과가 달라졌을 때 원인을 추적할 수 있음을 배웠습니다. 관련 판단과 근거는 [ADR 목록](docs/decisions/)에서 확인할 수 있습니다.
+
+---
+
 ## 💡 문제 정의
 
 > "분명 리뷰에서는 잘 맞는다고 했는데, 왜 나한테는 안 맞지?"
